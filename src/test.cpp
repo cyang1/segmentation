@@ -11,24 +11,17 @@ int main()
         std::cerr<<"can't read the image"<<std::endl;
         return -1;
     }
+    cv::imshow("original pic", src);
+
+    // Seems to be the most effective way to remove noise.
+    cv::medianBlur(src, src, 5);
+    cv::imshow("blurred pic", src);
 
     // Convert to lab color space so euclidian distance between colors
     // mimics perceptual difference.
     // Might need to convert src to CV_32FC3 later for accuracy.
     cv::Mat src_lab(src.size(), CV_8UC3);
     cv::cvtColor(src, src_lab, CV_BGR2Lab);
-
-    cv::imshow("original pic", src);
-
-    // Remove noise.
-    // Erode then dilate is best for objects on lighter background.
-    // Dilate then erode is best for objects on darker background.
-    int dilation_size = 5;
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE,
-        cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-        cv::Point(dilation_size, dilation_size));
-    erode(src_lab, src_lab, element);
-    dilate(src_lab, src_lab, element);
 
     // Floodfill regions that are close enough in color.
     cv::Mat mask = cv::Mat::zeros(src_lab.rows + 2, src_lab.cols + 2, CV_8U);
@@ -49,7 +42,7 @@ int main()
     cv::Mat dest(src.size(), CV_8UC3);
     cv::cvtColor(src_lab, dest, CV_Lab2BGR);
 
-    cv::imshow("filled with erode, then dilate", dest);
+    cv::imshow("filled", dest);
 
     cv::waitKey();
 
