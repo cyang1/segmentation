@@ -2,79 +2,54 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <cstdint>
 
 int main()
 {
-  cv::Mat src = cv::imread("/Users/Jeff/pic.png");
+    cv::Mat src = cv::imread("pic.png");
     if(src.empty()){
         std::cerr<<"can't read the image"<<std::endl;
         return -1;
     }
 
-    //step 1 : map the src to the samples
-    cv::Mat samples(src.total(), 3, CV_32F);
-    auto samples_ptr = samples.ptr<float>(0);
-    for( int row = 0; row != src.rows; ++row){
-        auto src_begin = src.ptr<uchar>(row);
-        auto src_end = src_begin + src.cols * src.channels();
-        //auto samples_ptr = samples.ptr<float>(row * src.cols);
-        while(src_begin != src_end){
-            samples_ptr[0] = src_begin[0];
-            samples_ptr[1] = src_begin[1];
-            samples_ptr[2] = src_begin[2];
-            samples_ptr += 3; src_begin +=3;
-        }        
-    }
+    // Convert to lab color space so euclidian distance between colors
+    // mimics perceptual difference.
+    // Might need to convert src to CV_32FC3 later for accuracy.
+    cv::Mat src_lab(src.size(), CV_8UC3);
+    cv::cvtColor(src, src_lab, CV_BGR2Lab);
 
-    //step 2 : apply kmeans to find labels and centers
-    int clusterCount = 10;
-    cv::Mat labels;
-    int attempts = 5;
-    cv::Mat centers;
-    cv::kmeans(samples, clusterCount, labels,
-               cv::TermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 
-                                10, 0.01),
-               attempts, cv::KMEANS_PP_CENTERS, centers);
+    cv::imshow("original pic", src);
 
-    //step 3 : map the centers to the output
-    cv::Mat new_image(src.size(), src.type());
-    for( int row = 0; row != src.rows; ++row){
-        auto new_image_begin = new_image.ptr<uchar>(row);
-        auto new_image_end = new_image_begin + new_image.cols * 3;
-        auto labels_ptr = labels.ptr<int>(row * src.cols);
+    // Remove noise.
+    // Erode then dilate is best for objects on lighter background.
+    // Dilate then erode is best for objects on darker background.
+    int dilation_size = 5;
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_ELLIPSE,
+        cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+        cv::Point(dilation_size, dilation_size));
+    erode(src_lab, src_lab, element);
+    dilate(src_lab, src_lab, element);
 
-        while(new_image_begin != new_image_end){
-            int const cluster_idx = *labels_ptr;
-            auto centers_ptr = centers.ptr<float>(cluster_idx);
-            new_image_begin[0] = centers_ptr[0];
-            new_image_begin[1] = centers_ptr[1];
-            new_image_begin[2] = centers_ptr[2];
-            new_image_begin += 3; ++labels_ptr;
+    // Floodfill regions that are close enough in color.
+    cv::Mat mask = cv::Mat::zeros(src_lab.rows + 2, src_lab.cols + 2, CV_8U);
+
+    for (int row = 0; row < src_lab.rows; ++row) {
+        auto src_lab_begin = src_lab.ptr<uint8_t>(row);
+        for (int col = 0; col < src_lab.cols; ++col) {
+            // Pixel at row, col = Mask at row + 1, col + 1
+            if (mask.at<uint8_t>(row + 1, col + 1) == 0) {
+                cv::Scalar_<uint8_t> pixel(src_lab_begin[0], src_lab_begin[1], src_lab_begin[2]);
+                cv::floodFill(src_lab, mask, cv::Point(col, row), pixel, NULL, cv::Scalar(3, 2, 2), cv::Scalar(3, 2, 2));
+            }
+            src_lab_begin += 3;
         }
     }
 
-    cv::Mat binary, copy = src.clone();
-    cv::GaussianBlur(copy, copy, cv::Size(5, 5), 0, 0);    
-    cv::Canny(copy, binary, 30, 90);
-    cv::vector<cv::Vec2f> lines;
-    cv::HoughLines(binary, lines, 1, CV_PI/180, 100, 0, 0 );
+    // Convert back.
+    cv::Mat dest(src.size(), CV_8UC3);
+    cv::cvtColor(src_lab, dest, CV_Lab2BGR);
 
-    for( size_t i = 0; i < lines.size(); i++ )
-    {
-      float rho = lines[i][0], theta = lines[i][1];
-      cv::Point pt1, pt2;
-      double a = cos(theta), b = sin(theta);
-      double x0 = a*rho, y0 = b*rho;
-      pt1.x = cvRound(x0 + 1000*(-b));
-      pt1.y = cvRound(y0 + 1000*(a));
-      pt2.x = cvRound(x0 - 1000*(-b));
-      pt2.y = cvRound(y0 - 1000*(a));
-      cv::line( src, pt1, pt2, cv::Scalar(255,0,255), 1, CV_AA);
-    }
-
-    cv::imshow("original", src);
-    cv::imshow("binary", binary);
-    cv::imshow( "clustered image", new_image );
+    cv::imshow("filled with erode, then dilate", dest);
 
     cv::waitKey();
 
