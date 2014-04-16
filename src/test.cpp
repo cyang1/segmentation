@@ -12,8 +12,8 @@ struct LabeledComponent {
 };
 
 struct Point {
-    unsigned int row;
-    unsigned int col;
+    int row;
+    int col;
 };
 
 static inline bool within_delta(cv::Vec3b c1, cv::Vec3b c2, cv::Scalar delta)
@@ -136,32 +136,43 @@ int main()
 
         for (int i = 0; i < src.rows; ++i) {
             for (int j = 0; j < src.cols; ++j) {
-                int y = yuv.at<cv::Vec3b>(i, j)[0];
-                int u = yuv.at<cv::Vec3b>(i, j)[1];
-                int v = yuv.at<cv::Vec3b>(i, j)[2];
-                if (y <= 80)        //black
+                auto pixel = yuv.data + i*yuv.step + j*yuv.channels();
+                auto seg_pixel = segmented.data + i*segmented.step + j*segmented.channels();
+                int y = pixel[0], v = pixel[1], u = pixel[2];   //y, cb, cr
+                if ((y >= 32 && y < 64 && u >= 136) || //blue
+                         (y >= 64 && y < 144 && u >= 144))
                 {
-                    segmented.at<cv::Vec3b>(i, j) = {0, 0, 0};
+                    seg_pixel[0] = 255;
+                    seg_pixel[1] = 0;
+                    seg_pixel[2] = 0;
                 }
-                else if (v >= 144)  //red
-                {
-                    segmented.at<cv::Vec3b>(i, j) = {0, 0, 255};
-                }
-                else if ((y < 32 && u < 120 && v < 120) ||  //green
+                else if ((y < 32 && u < 144 && v < 120) ||  //green
                          (y >= 32 && y < 96 && v < 120) ||
                          (y >= 96 && y < 144 && v < 104))
                 {
-                    segmented.at<cv::Vec3b>(i, j) = {0, 255, 0};
+                    seg_pixel[0] = 0;
+                    seg_pixel[1] = 255;
+                    seg_pixel[2] = 0;
                 }
-                else if ((y >= 32 && y < 64 && u >= 136) || //blue
-                         (y >= 64 && y < 144 && u >= 144))
+                else if (v >= 144)  //red
                 {
-                    segmented.at<cv::Vec3b>(i, j) = {255, 0, 0};
+                    seg_pixel[0] = 0;
+                    seg_pixel[1] = 0;
+                    seg_pixel[2] = 255;
                 }
                 else
                 {
-                    segmented.at<cv::Vec3b>(i, j) = {255, 255, 255};
+                    seg_pixel[0] = 255;
+                    seg_pixel[1] = 255;
+                    seg_pixel[2] = 255;
                 }
+                if (y <= 48)        //black
+                {
+                    seg_pixel[0] = 0;
+                    seg_pixel[1] = 0;
+                    seg_pixel[2] = 0;
+                }
+
             }
         }
 
