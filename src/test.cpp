@@ -19,7 +19,7 @@ struct Point {
 static inline bool within_delta(cv::Vec3b c1, cv::Vec3b c2, cv::Scalar delta)
 {
     cv::Vec3b diff = c1 - c2;
-    return abs(diff[0]) < delta[0] && abs(diff[1]) < delta[1] && abs(diff[2]) < delta[2];
+    return abs(diff[0]) <= delta[0] && abs(diff[1]) <= delta[1] && abs(diff[2]) <= delta[2];
 }
 
 // Point is row, col
@@ -89,21 +89,29 @@ int main()
         cv::bilateralFilter(src_lab, src_copy, 10, 20, 5);
         src_lab = src_copy;
 
+        cv::Mat canny;
+        cv::Canny(src_lab, canny, 40, 90);
+        canny.convertTo(canny, CV_16U, 256);
+
         // Floodfill regions that are close enough in color.
         std::vector<LabeledComponent> components;
         cv::Mat mask = cv::Mat::zeros(src_lab.rows + 2, src_lab.cols + 2, CV_16U);
 
-        // This removes the necessity to make boundary checks
-        for (int col = 0; col < mask.cols; col++) {
-            // Set to MAX_INT
-            mask.at<uint16_t>(0, col) = (uint16_t)-1;
-            mask.at<uint16_t>(mask.rows - 1, col) = (uint16_t)-1;
-        }
+
+        cv::Mat tmp = mask.clone();
+        cv::Mat roi(tmp(cvRect(1, 1, src.cols, src.rows)));
+        canny.copyTo(roi);
+        canny = tmp.clone();
+        mask |= canny;
 
         for (int row = 0; row < mask.rows; row++) {
-            // Set to MAX_INT
-            mask.at<uint16_t>(row, 0) = (uint16_t)-1;
-            mask.at<uint16_t>(row, mask.cols - 1) = (uint16_t)-1;
+            for (int col = 0; col < mask.cols; col++) {
+                auto pixel = mask.at<uint16_t>(row, col);
+                if (pixel != 0 || row == 0 || col == 0 ||
+                    row == mask.rows - 1 || col == mask.cols - 1) {
+                    pixel = (uint16_t)-1;
+                }
+            }
         }
 
         for (int row = 0; row < src_lab.rows; ++row) {
@@ -180,6 +188,7 @@ int main()
         imshow("orig", src);
         imshow("filled", dest);
         imshow("segmented", segmented);
+        imshow("canny", canny);
         if (cv::waitKey(30) >= 0)
         {
             break;
