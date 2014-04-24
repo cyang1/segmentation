@@ -6,6 +6,8 @@
 #include <vector>
 #include <cstdint>
 
+#include "canny.h"
+
 struct LabeledComponent {
     unsigned int id;
     cv::Vec3b avg_color;
@@ -51,7 +53,7 @@ static inline void floodFill(cv::Mat src, cv::Mat mask, LabeledComponent& cmp, P
                 int c_3 = src_data[src.step * new_row + src.channels() * new_col + 2];
                 cv::Vec3b next_color(c_1, c_2, c_3);
 
-                if (within_delta(cur_color, next_color, diff))
+                if (within_delta((total_color)/(1.0*num_pixels), next_color, diff))
                 {
                     total_color += next_color;
                     num_pixels++;
@@ -73,19 +75,19 @@ static inline cv::Mat segment(cv::Mat bgr) {
             auto pixel = yuv.data + i*yuv.step + j*yuv.channels();
             auto seg_pixel = segmented.data + i*segmented.step + j*segmented.channels();
             int y = pixel[0], v = pixel[1], u = pixel[2];   //y, cb, cr
-            if ((y >= 32 && y < 64 && u >= 136) || //blue
-                (y >= 64 && y < 144 && u >= 144))
+            if ((y >= 32 && y < 64 && u >= 120 && u-v > 28) || //blue
+                (y >= 64 && y < 144 && u >= 128 && u-v > 28))
             {
                 seg_pixel[0] = 255;
                 seg_pixel[1] = 0;
                 seg_pixel[2] = 0;
             }
-            else if ((y < 32 && u < 144 && v < 120) ||  //green
-                (y >= 32 && y < 96 && v < 120) ||
-                (y >= 96 && y < 144 && v < 104))
+            else if ((y < 32 && u < 144 && v < 120 && u-v < 20) ||  //green
+                (y >= 32 && y < 96 && v < 120 && u-v < 20) ||
+                (y >= 96 && y < 144 && v < 116 && u-v < 20))
             {
                 seg_pixel[0] = 0;
-                seg_pixel[1] = 255;
+                seg_pixel[1] = 255; 
                 seg_pixel[2] = 0;
             }
             else if (v >= 144)  //red
@@ -114,22 +116,28 @@ static inline cv::Mat segment(cv::Mat bgr) {
 
 int main()
 {
-    cv::VideoCapture cap(1);
+    cv::VideoCapture cap(0);
     if (!cap.isOpened())
     {
         std::cerr << "Webcam could not be opened." << std::endl;
         return -1;
     }
-    cv::namedWindow("orig");
-    cv::namedWindow("filled");
-    cv::namedWindow("canny");
-    cv::namedWindow("segmented");
-    cv::namedWindow("filled + segmented");
+    //cv::namedWindow("orig");
+    // cv::namedWindow("filled");
+    cv::namedWindow("mycanny");
+    cv::namedWindow("cvcanny");
+    // cv::namedWindow("segmented");
+    // cv::namedWindow("filled + segmented");
     for (;;)
     {
         cv::Mat src;
         cap >> src;
         cv::resize(src, src, cv::Size(640, 480));
+        cv::cvtColor(src, src, CV_BGR2GRAY);
+        cv::Mat mycanny = Canny(src, 40, 90), cvcanny(src.size(), CV_8UC1);
+        cv::Canny(src, cvcanny, 40, 90);
+
+        /*
 
         // Convert to lab color space so euclidian distance between colors
         // mimics perceptual difference.
@@ -143,8 +151,7 @@ int main()
 
         cv::cvtColor(src_lab, src, CV_Lab2BGR);
 
-        cv::Mat canny;
-        cv::Canny(src_lab, canny, 40, 90);
+        cv::Mat canny = Canny(src, 40, 90);
         canny.convertTo(canny, CV_16U, 256);
 
         // Floodfill regions that are close enough in color.
@@ -174,7 +181,7 @@ int main()
                 if (mask_begin[col + 1] == 0) {
                     LabeledComponent cmp;
                     cmp.id = components.size() + 1;
-                    floodFill(src_lab, mask, cmp, { row, col }, cv::Scalar(3, 1, 1));
+                    floodFill(src_lab, mask, cmp, { row, col }, cv::Scalar(20, 10, 10));
                     components.push_back(cmp);
                 }
             }
@@ -195,13 +202,14 @@ int main()
         cv::cvtColor(src_lab, dest, CV_Lab2BGR);
 
         cv::Mat orig_segmented = segment(src);
-        cv::Mat segmented = segment(dest);
+        cv::Mat segmented = segment(dest);*/
 
-        imshow("orig", src);
-        imshow("filled", dest);
-        imshow("canny", canny);
-        imshow("segmented", orig_segmented);
-        imshow("filled + segmented", segmented);
+        //imshow("orig", src);
+        //imshow("filled", dest);
+        imshow("mycanny", mycanny);
+        imshow("cvcanny", cvcanny);
+        //imshow("segmented", orig_segmented);
+        //imshow("filled + segmented", segmented);
         if (cv::waitKey(30) >= 0)
         {
             break;
