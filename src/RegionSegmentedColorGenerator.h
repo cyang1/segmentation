@@ -6,6 +6,7 @@
 #include "Vision/cmvision.h"
 #include "Vision/colors.h"
 #include <vector>
+#include <stdint.h>
 
 //! Generates FilterBankEvents indexed color images based on a color threshold file
 /*! Pretty simple idea - use a big mapping of YUV values to lookup
@@ -49,18 +50,18 @@
  *  For more information on serialization, see FilterBankGenerator
  *
  */
-class SegmentedColorGenerator : public FilterBankGenerator {
+class RegionSegmentedColorGenerator : public FilterBankGenerator {
 public:
   typedef CMVision::uchar cmap_t; //!< type to use for color indexes
   typedef CMVision::color_class_state color_class_state; //!< use CMVision's color structure
   typedef CMVision::color_name_map color_name_map; //!< shorthand for CMVision's color name lookup data structure
 
   //! constructor
-  SegmentedColorGenerator(unsigned int mysid, FilterBankGenerator* fbg, EventBase::EventTypeID_t tid);
+  RegionSegmentedColorGenerator(unsigned int mysid, FilterBankGenerator* fbg, EventBase::EventTypeID_t tid);
   //! constructor, you can pass which channels to use as Y, U, & V channels
-  SegmentedColorGenerator(unsigned int mysid, FilterBankGenerator* fbg, EventBase::EventTypeID_t tid, unsigned int syc, unsigned int suc, unsigned int svc);
+  RegionSegmentedColorGenerator(unsigned int mysid, FilterBankGenerator* fbg, EventBase::EventTypeID_t tid, unsigned int syc, unsigned int suc, unsigned int svc);
   //! destructor
-  virtual ~SegmentedColorGenerator();
+  virtual ~RegionSegmentedColorGenerator();
 
   static std::string getClassDescription() { return "Converts a FilterBankGenerator's data into indexed color"; }
 
@@ -160,6 +161,11 @@ protected:
   unsigned int numColors; //!< number of available colors
   color_class_state colors[MAX_COLORS]; //!< array of available colors
   color_name_map colorNames; //!< look up color indexes corresponding to names
+
+  void nms_val(uint8_t* nms_ptr, uint8_t* s_ptr, int p, int diff);
+  void trace(int i, int j, uint32_t low, uint8_t *nms, uint8_t *dir, CMVision::image<cmap_t> out);
+  void canny(CMVision::image<const cmap_t> in, CMVision::image<cmap_t> out, unsigned int low, unsigned int high);
+  void yuvtolab(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out);
 
 private:
   RegionSegmentedColorGenerator(const RegionSegmentedColorGenerator& fbk); //!< don't call
