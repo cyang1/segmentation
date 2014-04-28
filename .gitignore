@@ -1,0 +1,6 @@
+.DS_Store
+segmentation
+Makefile
+cmake_install.cmake
+CMakeFiles
+CMakeCache.txt
