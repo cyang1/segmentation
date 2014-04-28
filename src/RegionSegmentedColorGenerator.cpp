@@ -1,4 +1,4 @@
-#include "RegionRegionSegmentedColorGenerator.h"
+#include "RegionSegmentedColorGenerator.h"
 #include "Events/EventRouter.h"
 #include "Events/SegmentedColorFilterBankEvent.h"
 #include "Wireless/Wireless.h"
@@ -221,9 +221,9 @@ RegionSegmentedColorGenerator::nms_val(uint8_t* nms_ptr, uint8_t* s_ptr, int p, 
 } 
 
 void
-RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, uint8_t *dir, CMVision::image<const cmap_t> out) {
-    if (out->buf[i * out.row_stride + j] == 0) {
-        out->buf[i * out.row_stride + j] = 255;
+RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, uint8_t *dir, CMVision::image<cmap_t> out) {
+    if (out.buf[i * out.row_stride + j] == 0) {
+        out.buf[i * out.row_stride + j] = 255;
         switch (dir[i * out.width + j]) {
             case 0:
                 j += 1;
@@ -242,7 +242,7 @@ RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, u
             default:
                 break;
         }
-        if (i >= 0 && i < rows && j >= 0 && j < out.width &&
+        if (i >= 0 && i < out.height && j >= 0 && j < out.width &&
             nms[i * out.width + j] >= low) {
             trace(i, j, low, nms, dir, out);
         }
@@ -250,10 +250,10 @@ RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, u
 }
 
 void
-RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision::image<const cmap_t> out, unsigned int low, unsigned int high) {
-  assert(in->buf != NULL && out->buf != NULL);
-  assert(in.width == out.width && in.height == out.height);
-  assert(low < high);
+RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision::image<cmap_t> out, unsigned int low, unsigned int high) {
+  // assert(in.buf != NULL && out.buf != NULL);
+  // assert(in.width == out.width && in.height == out.height);
+  // assert(low < high);
 
   uint8_t *sobel, *dir, *nms;
   sobel = (uint8_t*)malloc(sizeof(uint8_t) * in.width * in.height);
@@ -270,7 +270,7 @@ RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision:
           int sum_x = 0, sum_y = 0;
           for (int m = -1; m <= 1; m++) {
               for (int n = -1; n <= 1; n++) {
-                  cmap_t pixel = in->buf[(i+m)*in.row_stride + (j+n)];
+                  cmap_t pixel = in.buf[(i+m)*in.row_stride + (j+n)];
                   sum_x += pixel*dx[m+1][n+1];
                   sum_y += pixel*dy[m+1][n+1];
               }
@@ -282,26 +282,26 @@ RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision:
            * Estimate the direction of the sobel gradient, in degrees.
            */
           if (sum_x == 0 && sum_y == 0) {
-              dir_ptr[index] = 0;
+              dir[index] = 0;
           }
           else if (sum_x == 0) {
-              dir_ptr[index] = 90;
+              dir[index] = 90;
           }
           else {
               double abs_div = abs(sum_y / (double) sum_x);
               if (abs_div > 2.41421356237) {  //atan2(2.4...) ~= 67.5 deg
-                  dir_ptr[index] = 0;
+                  dir[index] = 0;
               }
               else if (abs_div > 0.414213562373) {    //atan(0.4...) ~= 22.5 deg
                   if ((sum_y / sum_x) > 0) {
-                      dir_ptr[index] = 45;
+                      dir[index] = 45;
                   }
                   else {
-                      dir_ptr[index] = 135;
+                      dir[index] = 135;
                   }
               }
               else {
-                  dir_ptr[index] = 90;
+                  dir[index] = 90;
               }
           }
       }
@@ -313,7 +313,7 @@ RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision:
   for (int i = 1; i < in.height - 1; i++) {
       for (int j = 1; j < in.width - 1; j++) {
           int p = i*in.width + j;
-          switch (dir_ptr[p]) {
+          switch (dir[p]) {
               case 0:     // N/S
                   nms_val(nms, sobel, p, in.width);
                   break;
@@ -348,7 +348,7 @@ RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision:
 
 void
 RegionSegmentedColorGenerator::yuvtolab(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out) {
-  assert(in.width == out.width && in.height == out.height);
+  // assert(in.width == out.width && in.height == out.height);
   // to rgb first
   for (int row = 0; row < in.width; row++) {
     for (int col = 0; col < in.height; col++) {
@@ -360,22 +360,22 @@ RegionSegmentedColorGenerator::yuvtolab(CMVision::image_yuv<const cmap_t> in, CM
              y = 0.212671*r + 0.715160*g + 0.072169*b,
              z = 0.019334*r + 0.119193*g + 0.950227*b;
       double x_n = 0.9642, y_n = 1.0000, z_n = 0.8249;
-      double xx_n = x/x_n, yy_n, y/y_n, zz_n = z/z_n;
-      cmap_t l, a, b;
+      double xx_n = x/x_n, yy_n = y/y_n, zz_n = z/z_n;
+      cmap_t L, A, B;
       if (yy_n > 0.008856) {
-        l = 116 * pow(yy_n, 1./3) - 16;
+        L = 116 * pow(yy_n, 1./3) - 16;
       }
       else {
-        l = 903.3 * yy_n;
+        L= 903.3 * yy_n;
       }
-      double fxx_n = (xx_n > 0.008856) ? pow(xx_n, 1./3), 7.787 * xx_n + 16./116,
-             fyy_n = (yy_n > 0.008856) ? pow(yy_n, 1./3), 7.787 * yy_n + 16./116,
-             fzz_n = (zz_n > 0.008856) ? pow(zz_n, 1./3), 7.787 * zz_n + 16./116;
-      a = 500 * (fxx_n - fyy_n);
-      b = 200 * (fyy_n - fzz_n);
-      out.buf_y[row*out.row_stride + col*out.col_stride] = l;
-      out.buf_u[row*out.row_stride + col*out.col_stride] = a;
-      out.buf_v[row*out.row_stride + col*out.col_stride] = b;
+      double fxx_n = (xx_n > 0.008856) ? pow(xx_n, 1./3) : 7.787 * xx_n + 16./116,
+             fyy_n = (yy_n > 0.008856) ? pow(yy_n, 1./3) : 7.787 * yy_n + 16./116,
+             fzz_n = (zz_n > 0.008856) ? pow(zz_n, 1./3) : 7.787 * zz_n + 16./116;
+      A = 500 * (fxx_n - fyy_n);
+      B = 200 * (fyy_n - fzz_n);
+      out.buf_y[row*out.row_stride + col*out.col_stride] = L;
+      out.buf_u[row*out.row_stride + col*out.col_stride] = A;
+      out.buf_v[row*out.row_stride + col*out.col_stride] = B;
     }
   }
 }
@@ -387,9 +387,9 @@ RegionSegmentedColorGenerator::calcImage(unsigned int layer, unsigned int chan) 
   PROFSECTION("RegionSegmentedColorGenerator::calcImage(...)",*mainProfiler);
   CMVision::image_yuv<const cmap_t> img(src->getImage(layer, srcYChan), src->getImage(layer, srcUChan), src->getImage(layer, srcVChan),
       getWidth(layer), getHeight(layer), src->getStride(layer), src->getIncrement(layer));
-  CMVision::image_yuv<cmap_t> lab_img(createImageCache(layer), createImageCache(layer), createImageCache(layer), img.width, img.height, img.width, 1);
+  CMVision::image_yuv<cmap_t> lab_img(createImageCache(layer,1), createImageCache(layer,1), createImageCache(layer,1), img.width, img.height, img.width, 1);
   CMVision::image<const cmap_t> gray_img(img.buf_y, img.width, img.height, img.width);
-  CMVision::image<cmap_t> canny_img(createImageCache(layer), img.width, img.height, img.width);
+  CMVision::image<cmap_t> canny_img(createImageCache(layer,1), img.width, img.height, img.width);
   yuvtolab(img, lab_img);
   canny(gray_img, canny_img, 40, 90);
   // floodfill
