@@ -387,11 +387,10 @@ RegionSegmentedColorGenerator::calcImage(unsigned int layer, unsigned int chan) 
   PROFSECTION("RegionSegmentedColorGenerator::calcImage(...)",*mainProfiler);
   CMVision::image_yuv<const cmap_t> img(src->getImage(layer, srcYChan), src->getImage(layer, srcUChan), src->getImage(layer, srcVChan),
       getWidth(layer), getHeight(layer), src->getStride(layer), src->getIncrement(layer));
-
-  // blur
-  // convert to LAB, greyscale
-  CMVision::image<const cmap_t> gray_img(img.buf_y, width, height, width);
-  CMVision::image<cmap_t> canny_img(createImageCache(layer), width, height, width);
+  CMVision::image_yuv<cmap_t> lab_img(createImageCache(layer), createImageCache(layer), createImageCache(layer), img.width, img.height, img.width, 1);
+  CMVision::image<const cmap_t> gray_img(img.buf_y, img.width, img.height, img.width);
+  CMVision::image<cmap_t> canny_img(createImageCache(layer), img.width, img.height, img.width);
+  yuvtolab(img, lab_img);
   canny(gray_img, canny_img, 40, 90);
   // floodfill
 
