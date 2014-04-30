@@ -166,6 +166,7 @@ protected:
   void trace(int i, int j, uint32_t low, uint8_t *nms, uint8_t *dir, CMVision::image<cmap_t> out);
   void canny(CMVision::image<const cmap_t> in, CMVision::image<cmap_t> out, unsigned int low, unsigned int high);
   void yuvtolab(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out);
+  void copyMakeReflect101Border(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out, int r);
 
 private:
   RegionSegmentedColorGenerator(const RegionSegmentedColorGenerator& fbk); //!< don't call

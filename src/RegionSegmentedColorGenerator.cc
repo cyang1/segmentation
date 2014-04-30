@@ -380,6 +380,33 @@ RegionSegmentedColorGenerator::yuvtolab(CMVision::image_yuv<const cmap_t> in, CM
   }
 }
 
+void RegionSegmentedColorGenerator::copyMakeReflect101Border(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out, int r) {
+  unsigned char *out_y = new unsigned char[(in.width+2*r)*(in.height+2*r)+1];
+  unsigned char *out_u = new unsigned char[(in.width+2*r)*(in.height+2*r)+1];
+  unsigned char *out_v = new unsigned char[(in.width+2*r)*(in.height+2*r)+1];
+  out = CMVision::image_yuv<cmap_t>(out_y, out_u, out_v, in.width + 2*r, in.height + 2*r, in.width + 2*r, 1);
+  for (int row = 0; row < out.height; row++) {
+    for (int col = 0; col < out.width; col++) {
+      int equiv_row = row, equiv_col = col;
+      if (row < r) {
+        equiv_row = 2*(r - row);
+      }
+      else if (row >= in.height) {
+        equiv_row = 2*(in.height - 1) - row;
+      }
+      if (col < r) {
+        equiv_col = 2*(r - col);
+      }
+      else if (col >= in.width) {
+        equiv_col = 2*(in.width - 1) - col;
+      }
+      out_y[row*out.row_stride + col] = in.buf_y[equiv_row*in.row_stride + equiv_col*in.col_stride];
+      out_u[row*out.row_stride + col] = in.buf_u[equiv_row*in.row_stride + equiv_col*in.col_stride];
+      out_v[row*out.row_stride + col] = in.buf_v[equiv_row*in.row_stride + equiv_col*in.col_stride];
+    }
+  }
+}
+
 void
 RegionSegmentedColorGenerator::calcImage(unsigned int layer, unsigned int chan) {
   if(tmaps.size()==0)
