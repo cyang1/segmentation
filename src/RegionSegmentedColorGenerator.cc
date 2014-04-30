@@ -222,8 +222,8 @@ RegionSegmentedColorGenerator::nms_val(uint8_t* nms_ptr, uint8_t* s_ptr, int p, 
 
 void
 RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, uint8_t *dir, CMVision::image<cmap_t> out) {
-    if (out.buf[i * out.row_stride + j] == 0) {
-        out.buf[i * out.row_stride + j] = 255;
+    if (out.buf[(i+1) * out.row_stride + (j+1)] == 0) {
+        out.buf[(i+1) * out.row_stride + (j+1)] = 255;
         switch (dir[i * out.width + j]) {
             case 0:
                 j += 1;
@@ -242,7 +242,7 @@ RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, u
             default:
                 break;
         }
-        if (i >= 0 && i < out.height && j >= 0 && j < out.width &&
+        if (i >= 1 && i < out.height-2 && j >= 1 && j < out.width-2 &&
             nms[i * out.width + j] >= low) {
             trace(i, j, low, nms, dir, out);
         }
@@ -387,11 +387,12 @@ RegionSegmentedColorGenerator::calcImage(unsigned int layer, unsigned int chan) 
   PROFSECTION("RegionSegmentedColorGenerator::calcImage(...)",*mainProfiler);
   CMVision::image_yuv<const cmap_t> img(src->getImage(layer, srcYChan), src->getImage(layer, srcUChan), src->getImage(layer, srcVChan),
       getWidth(layer), getHeight(layer), src->getStride(layer), src->getIncrement(layer));
+  
   CMVision::image_yuv<cmap_t> lab_img(createImageCache(layer,1), createImageCache(layer,1), createImageCache(layer,1), img.width, img.height, img.width, 1);
   CMVision::image<const cmap_t> gray_img(img.buf_y, img.width, img.height, img.width);
-  CMVision::image<cmap_t> canny_img(createImageCache(layer,1), img.width, img.height, img.width);
+  CMVision::image<cmap_t> mask(new unsigned char[(widths[layer]+2)*(heights[layer]+2)+1], img.width + 2, img.height, img.width + 2);
   yuvtolab(img, lab_img);
-  canny(gray_img, canny_img, 40, 90);
+  canny(gray_img, mask, 40, 90);
   // floodfill
 
   CMVision::ThresholdImageYUVPlanar<cmap_t,CMVision::image_yuv<const cmap_t>,const cmap_t,BITS_Y,BITS_U,BITS_V>(images[layer][chan],img,tmaps[chan]);
