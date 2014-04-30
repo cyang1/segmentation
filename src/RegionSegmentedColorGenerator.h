@@ -167,6 +167,12 @@ protected:
   void canny(CMVision::image<const cmap_t> in, CMVision::image<cmap_t> out, unsigned int low, unsigned int high);
   void yuvtolab(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out);
 
+  void bilateralFilter(CMVision::image_yuv<const cmap_t> in,
+    CMVision::image_yuv<cmap_t> out,
+    int d,
+    double sigma_color,
+    double sigma_space);
+
 private:
   RegionSegmentedColorGenerator(const RegionSegmentedColorGenerator& fbk); //!< don't call
   const RegionSegmentedColorGenerator& operator=(const RegionSegmentedColorGenerator& fbk); //!< don't call
