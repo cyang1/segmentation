@@ -314,7 +314,7 @@ RegionSegmentedColorGenerator::trace(int i, int j, uint32_t low, uint8_t *nms, u
 }
 
 void
-RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision::image<int> out, unsigned int low, unsigned int high) {
+RegionSegmentedColorGenerator::canny(CMVision::image<cmap_t> in, CMVision::image<int> out, unsigned int low, unsigned int high) {
   // assert(in.buf != NULL && out.buf != NULL);
   // assert(in.width == out.width && in.height == out.height);
   // assert(low < high);
@@ -411,11 +411,11 @@ RegionSegmentedColorGenerator::canny(CMVision::image<const cmap_t> in, CMVision:
 }
 
 void
-RegionSegmentedColorGenerator::yuvtolab(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out) {
+RegionSegmentedColorGenerator::yuvtolab(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t> out) {
   // assert(in.width == out.width && in.height == out.height);
   // to rgb first
-  for (int row = 0; row < in.width; row++) {
-    for (int col = 0; col < in.height; col++) {
+  for (int row = 0; row < in.height; row++) {
+    for (int col = 0; col < in.width; col++) {
       const cmap_t in_y = in.buf_y[row*in.row_stride + col*in.col_stride],
                    in_u = in.buf_u[row*in.row_stride + col*in.col_stride],
                    in_v = in.buf_v[row*in.row_stride + col*in.col_stride];
@@ -444,7 +444,34 @@ RegionSegmentedColorGenerator::yuvtolab(CMVision::image_yuv<const cmap_t> in, CM
   }
 }
 
-void RegionSegmentedColorGenerator::copyMakeReflect101Border(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t>& out, int r) {
+void
+RegionSegmentedColorGenerator::labtoyuv(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t> out) {
+  // assert(in.width == out.width && in.height == out.height);
+  // to rgb first
+  for (int row = 0; row < in.height; row++) {
+    for (int col = 0; col < in.width; col++) {
+      const cmap_t in_l = in.buf_y[row*in.row_stride + col*in.col_stride],
+                   in_a = in.buf_u[row*in.row_stride + col*in.col_stride],
+                   in_b = in.buf_v[row*in.row_stride + col*in.col_stride];
+      double p = (in_l + 16) / 116.;
+      double x = 0.9642 * pow(p + in_a / 500., 3),
+             y = 1.0000 * pow(p, 3),
+             z = 0.8249 * pow(p - in_b / 200., 3);
+      double r =  3.240479*x - 1.537150*y - 0.487535*z,
+             g = -0.969256*x + 1.875992*y + 0.041556*z,
+             b =  0.055638*x - 0.204043*y + 1.057311*z;
+      cmap_t Y, U, V;
+      Y = 0.299*r + 0.587*g + 0.114*b;
+      U = -0.14713*r - 0.28886*g + 0.436*b;
+      V = 0.615*r - 0.51499*g - 0.10001*b;
+      out.buf_y[row*out.row_stride + col*out.col_stride] = Y;
+      out.buf_u[row*out.row_stride + col*out.col_stride] = U;
+      out.buf_v[row*out.row_stride + col*out.col_stride] = V;
+    }
+  }
+}
+
+void RegionSegmentedColorGenerator::copyMakeReflect101Border(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t> out, int r) {
   unsigned char *out_y = new unsigned char[(in.width+2*r)*(in.height+2*r)+1];
   unsigned char *out_u = new unsigned char[(in.width+2*r)*(in.height+2*r)+1];
   unsigned char *out_v = new unsigned char[(in.width+2*r)*(in.height+2*r)+1];
@@ -727,6 +754,8 @@ RegionSegmentedColorGenerator::calcImage(unsigned int layer, unsigned int chan) 
   }
 
   floodFill(lab_img, mask);
+
+  labtoyuv(lab_img, img);
 
   // Remember to change the img parameter.
   CMVision::ThresholdImageYUVPlanar<cmap_t,CMVision::image_yuv<cmap_t>,const cmap_t,BITS_Y,BITS_U,BITS_V>(images[layer][chan],lab_img,tmaps[chan]);

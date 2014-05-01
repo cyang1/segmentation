@@ -164,8 +164,9 @@ protected:
 
   void nms_val(uint8_t* nms_ptr, uint8_t* s_ptr, int p, int diff);
   void trace(int i, int j, uint32_t low, uint8_t *nms, uint8_t *dir, CMVision::image<int> out);
-  void canny(CMVision::image<const cmap_t> in, CMVision::image<int> out, unsigned int low, unsigned int high);
-  void yuvtolab(CMVision::image_yuv<const cmap_t> in, CMVision::image_yuv<cmap_t> out);
+  void canny(CMVision::image<cmap_t> in, CMVision::image<int> out, unsigned int low, unsigned int high);
+  void yuvtolab(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t> out);
+  void labtoyuv(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t> out);
   void copyMakeReflect101Border(CMVision::image_yuv<cmap_t> in, CMVision::image_yuv<cmap_t>& out, int r);
 
   void bilateralFilter(CMVision::image_yuv<cmap_t> in,
