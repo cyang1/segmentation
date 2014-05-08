@@ -24,7 +24,7 @@
   <link href="stylesheets/layout-72c7f904.css" media="all" rel="stylesheet" type="text/css" />
   <![endif]-->
 
-  <link href="stylesheets/all-d6498be1.css" media="screen" rel="stylesheet" type="text/css" />
+  <link href="stylesheets/all-521604a5.css" media="screen" rel="stylesheet" type="text/css" />
   <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Open Sans:300,400,700,300italic,400italic,700italic" />
 <!--[if IE]>
 <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Open Sans:300" />
@@ -48,26 +48,60 @@
 
 <h3>Jeff Chen (jchen4), Cary Yang (caryy)</h3>
 
-<p>When examining the pictures, we noticed that both the regular (rgb) images and the depth images had very clearly delineated blocks. The first thing that we tried took only the rgb image into account &ndash; we simply thresholded the image with an arbitrary constant (0.65) using <code>img2bw</code>, then found the largest blob using <code>regionprops</code>. The output of <code>regionprops</code> included all necessary information, including the blob&rsquo;s centroid, orientation, and axis lengths. This worked well for the pictures with only the top face of the block showing. However, when more than one face of the block was showing, the calculated centroid would be offset, since the threshold would capture both faces of the block.</p>
+<p>For our final project, we worked on improving the color segmentations capabilities of Tekkotsu.</p>
 
-<p><aside class="figure">
-    <h4 class="figure-title">Figure 1: Output on <code>rgba1.png</code></h4>
-    <img src="images/asst2fig1.png" />
-</aside></p>
+<h4>Our Procedure</h4>
 
-<p>Next, we tried doing the same thing, but on the depth image. However, while the depth image was able to clearly distinguish between the block faces, the pictures were not taken from directly above the block, so some parts of the block were relatively far away. In fact, with a basic threshold, to capture all of the block, other pieces of the image would also be captured, creating other blobs that were bigger than the block blobs.</p>
+<p><img src="images/flowchart-15218019.png" />
+<aside>
+<div class="figure">
+    <img src="images/raw-092bfbe3.png" />
+    <h4 class="figure-title">Figure 1: Input image</h4>
+</div></p>
 
-<p>The solution we found was to combine the two strategies. First, we found the largest, but potentially inaccurate, blob from the rgb image. Next, we found all of the blobs from the depth image with a relatively unrestrictive threshold, to ensure that the entire top face of the blob would be captured. Then, we iterated through the depth blobs&#39; centroids, finding the depth blob that had the closest centroid to the rgb blob. We then used the found depth blob to find the centroid, orientation, and axis length data. This method proved remarkably accurate &ndash; though the images did not have any provided scale, the centroids appear to be within 10 pixels, and the orientation is almost perfect.</p>
+<div class="figure">
+    <img src="images/blur-fe4702c6.png" />
+    <h4 class="figure-title">Figure 2: Result of bilateral filter</h4>
+</div>
 
-<p><aside class="figure">
-    <h4 class="figure-title">Figure 2: Output on <code>rgba8.png</code></h4>
-    <img src="images/asst2fig8.png" />
-</aside></p>
+<div class="figure">
+    <img src="images/floodfill-c6dce101.png" />
+    <h4 class="figure-title">Figure 3: Result of floodfill</h4>
+</div>
 
-<p>Our function <code>get_blob_data</code> will display a window with the calculated centroid (green dot), and major and minor axes of the circumscribed ellipse (blue and red lines, respectively) on top of the rgb image. In addition, the image is overlayed with a translucent version of the segmented depth image. The function takes in as input the image number and will output a vector of <code>[centroid, orientation]</code>.</p>
+<div class="figure">
+    <img src="images/seg-0e445880.png" />
+    <h4 class="figure-title">Figure 4: Result of segmentation</h4>
+</div>
+
+<p></aside></p>
+
+<ol>
+<li><p>First, we convert the color space of the image from YUV to CIELAB. This color space is specialized so that the Euclidean distance between the vector representations of two colors mirrors the perceptual difference between those colors.</p>
+
+<p>This step is done to ensure that our remaining steps, which rely heavily on the distance between colors,</p></li>
+<li><p>Next, we apply a bilateral filter on the image to remove noise while maintaining the the sharp edges in the image. The bilateral filter replaces the value of each pixel with a weighted average of the pixels around it. However, unlike the Gaussian filter, the bilateral filter depends on both the physical distance between the pixels and the differences between the actual color intensity.</p>
+
+<p>Results of this step on the input image can be seen in Figure 2.</p></li>
+<li><p>On the result from step 2, we run a Canny edge detector and store the result for use in the next step.</p></li>
+<li><p>Now, we take the result from step 2 and run an approximate floodfill algorithm on the image, modifying the traditional floodfill algorithm to fill in adjacent pixels if they are within a certain range of the seed pixel color.</p>
+
+<p>Additionally, we use the result from Canny edge detector in step 3 to ensure that the floodfill does not fill over edges in the image.</p>
+
+<p>Results of this step can be seen in Figure 3.</p></li>
+<li><p>Finally, we convert the color space of the image back to YUV and run the original color segmentation routine on the image, with a slightly modified color map to better segment the colors in the image.</p>
+
+<p>This final result can be seen in Figure 4.</p></li>
+</ol>
+
+<h4>Future Work</h4>
+
+<p>We have implemented our procedure in a <code>RegionSegmentedColorGenerator</code> class, attached, however, we have not yet changed the <code>RegionGenerator</code> class to use our new segmentation procedure.</p>
+
+<p>To actually link everything together, a new <code>sketchFromRegionSegmentedImage</code> would have to be created in the relevant file and then used in during the region generating process in place of the current segmenteding procedure.</p>
 
 <div id="download-btn-container">
-  <a href="asst2code.zip" class="btn blue" role="button">
+  <a href="tekkotsu.tar" class="btn blue" role="button">
     <i class="icon ion-code-download"></i>
     Download Our Code
   </a>
