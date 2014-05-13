@@ -55,23 +55,41 @@
 <p><img src="images/flowchart-15218019.png" />
 <aside>
 <div class="figure">
-    <img src="images/raw-092bfbe3.png" />
-    <h4 class="figure-title">Figure 1: Input image</h4>
+  <img src="images/raw-5fc89fec.png" />
+  <h4 class="figure-title">Input image</h4>
 </div></p>
 
 <div class="figure">
-    <img src="images/blur-fe4702c6.png" />
-    <h4 class="figure-title">Figure 2: Result of bilateral filter</h4>
+  <img src="images/blur-fe4702c6.png" />
+  <h4 class="figure-title">Step 2: Bilateral filter</h4>
 </div>
 
-<div class="figure">
-    <img src="images/floodfill-c6dce101.png" />
-    <h4 class="figure-title">Figure 3: Result of floodfill</h4>
-</div>
+<p></p>
 
 <div class="figure">
-    <img src="images/seg-0e445880.png" />
-    <h4 class="figure-title">Figure 4: Result of segmentation</h4>
+  <img src="images/canny-69d6a3c8.png" />
+  <h4 class="figure-title">Step 3: Canny edge detector</h4>
+</div>
+
+<p></p>
+
+<div class="figure">
+  <img src="images/floodfill-c6dce101.png" />
+  <h4 class="figure-title">Step 4: Floodfill</h4>
+</div>
+
+<p></p>
+
+<div class="figure">
+  <img src="images/seg-0e445880.png" />
+  <h4 class="figure-title">Step 5: Segmentation</h4>
+</div>
+
+<p></p>
+
+<div class="figure">
+  <img src="images/orig_segmented-b5aacd28.png" />
+  <h4 class="figure-title">Only segmentation on input image</h4>
 </div>
 
 <p></aside></p>
@@ -79,19 +97,24 @@
 <ol>
 <li><p>First, we convert the color space of the image from YUV to CIELAB. This color space is specialized so that the Euclidean distance between the vector representations of two colors mirrors the perceptual difference between those colors.</p>
 
-<p>This step is done to ensure that our remaining steps, which rely heavily on the distance between colors,</p></li>
+<p>This step is done to ensure that our remaining steps, which rely heavily on the distance between colors, is done as accurately as possible with respect to human perception.</p></li>
 <li><p>Next, we apply a bilateral filter on the image to remove noise while maintaining the the sharp edges in the image. The bilateral filter replaces the value of each pixel with a weighted average of the pixels around it. However, unlike the Gaussian filter, the bilateral filter depends on both the physical distance between the pixels and the differences between the actual color intensity.</p>
 
-<p>Results of this step on the input image can be seen in Figure 2.</p></li>
+<p>This noise removal step is necessary to ensure that the Canny edge detector and the floodfill do not detect and react to high-frequency noise.</p></li>
 <li><p>On the result from step 2, we run a Canny edge detector and store the result for use in the next step.</p></li>
-<li><p>Now, we take the result from step 2 and run an approximate floodfill algorithm on the image, modifying the traditional floodfill algorithm to fill in adjacent pixels if they are within a certain range of the seed pixel color.</p>
+<li><p>Now, we take the result from step 2 and run an approximate floodfill algorithm on the image, modifying the traditional floodfill algorithm to add adjacent pixels to the current component if they are within a certain range of the seed pixel color.</p>
 
-<p>Additionally, we use the result from Canny edge detector in step 3 to ensure that the floodfill does not fill over edges in the image.</p>
+<p>This is a two-pass process:</p>
 
-<p>Results of this step can be seen in Figure 3.</p></li>
+<ol>
+<li>First, we run the approximate floodfill algorithm on the image, using the result from the Canny edge detector in step 3 to ensure that the floodfill does not fill over edges in the image.</li>
+<li>Then, we perform a second pass over the image and fill in each pixel with the average color of the component that it belonged to.</li>
+</ol></li>
 <li><p>Finally, we convert the color space of the image back to YUV and run the original color segmentation routine on the image, with a slightly modified color map to better segment the colors in the image.</p>
 
-<p>This final result can be seen in Figure 4.</p></li>
+<p>This final color segmentation is necessary to segment the colors in the flat, floodfill-ed image to the red, green, blue, and black colors that Tekkotsu recognizes and can handle.</p>
+
+<p>As we can see to the right, our result is signficantly better than the original color segmenter at accurately determining the colors of objects regardless of lighting differences.</p></li>
 </ol>
 
 <h4>Future Work</h4>
